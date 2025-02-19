@@ -1,0 +1,9 @@
+pydicom
+opencv-python
+pynrrd
+scikit-image
+matplotlib==3.5.0
+ninja
+rich
+monai
+transformers==4.28.0
