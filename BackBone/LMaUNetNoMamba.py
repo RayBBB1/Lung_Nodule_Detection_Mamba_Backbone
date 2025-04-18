@@ -30,9 +30,8 @@ import sys
 from modules import SELayer, Identity, ConvBlock, act_layer, norm_layer3d
 from ptflops import get_model_complexity_info
 '''
-Computational complexity:       26.69 GMac
-Number of parameters:           7.57 M   
 '''
+
 class MambaLayer(nn.Module):
     def __init__(self, dim, d_state = 16, d_conv = 4, expand = 2):
         super().__init__()
@@ -359,8 +358,6 @@ class ResidualBiMambaEncoder(nn.Module):
 
         # now build the network
         stages = []
-        w_mamba_layers = []
-        mamba_layers = []
         for s in range(n_stages):
             stride_for_conv = strides[s] if pool_op is None else 1
 
@@ -378,8 +375,6 @@ class ResidualBiMambaEncoder(nn.Module):
             stages.append(stage)
             input_channels = features_per_stage[s]
             
-            mamba_layers.append(BiPixelMambaLayer(input_channels, 2**( (n_stages-s+1)//2-1) ))
-            w_mamba_layers.append(BiWindowMambaLayer(input_channels, 2**((n_stages-s+1)//2)//2 ))
             
 
 
@@ -400,8 +395,6 @@ class ResidualBiMambaEncoder(nn.Module):
         self.conv_bias = conv_bias
         self.kernel_sizes = kernel_sizes
 
-        self.mamba_layers = nn.ModuleList(mamba_layers)
-        self.w_mamba_layers = nn.ModuleList(w_mamba_layers)
 
     def forward(self, x):
         if self.stem is not None:
@@ -411,8 +404,6 @@ class ResidualBiMambaEncoder(nn.Module):
         for s in range(len(self.stages)):
             #x = s(x)
             x = self.stages[s](x)
-            x = self.mamba_layers[s](x)
-            x = self.w_mamba_layers[s](x)
             ret.append(x)
         if self.return_skips:
             return ret
@@ -659,7 +650,7 @@ def main():
         conv_op=nn.Conv3d,
         kernel_sizes=[3, 3,3],
         strides=[2, 2,2],
-        n_conv_per_stage=[4, 4, 4], # Number of encoder blocks(Conv+PiM+PaM)
+        n_conv_per_stage=[2, 2, 2], # Number of encoder blocks(Conv+PiM+PaM)
         num_classes=1,
         n_conv_per_stage_decoder=[2],# conv after  transpose, not on skip connection
         conv_bias=True,
@@ -671,22 +662,22 @@ def main():
         nonlin_kwargs={'inplace': True},
         ).to(device)
     
-    macs, params = get_model_complexity_info(model, (1, 96, 96, 96), as_strings=True,
+    macs, params = get_model_complexity_info(model, (1, 96, 96, 96), as_strings=False,
                                         print_per_layer_stat=True, verbose=True)
     print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
     print('{:<30}  {:<8}'.format('Number of parameters: ', params))
 
     # fvcore 相關導入
-    # from fvcore.nn import FlopCountAnalysis, parameter_count_table
-    # input_tensor = torch.randn(1, 1, 96, 96, 96).to(device)
+    from fvcore.nn import FlopCountAnalysis, parameter_count_table
+    input_tensor = torch.randn(1, 1, 96, 96, 96).to(device)
 
-    # # 使用 fvcore 計算 FLOPs
-    # flops = FlopCountAnalysis(model, input_tensor)
-    # flops_total = flops.total()  # 總 FLOPs
-    # print(f"Total FLOPs: {flops_total / 1e9:.2f} GFLOPs")  # 轉換為 GFLOPs
-    # print(flops.by_module())  # 按模塊顯示詳細 FLOPs
+    # 使用 fvcore 計算 FLOPs
+    flops = FlopCountAnalysis(model, input_tensor)
+    flops_total = flops.total()  # 總 FLOPs
+    print(f"Total FLOPs: {flops_total / 1e9:.2f} GFLOPs")  # 轉換為 GFLOPs
+    print(flops.by_module())  # 按模塊顯示詳細 FLOPs
 
-    # # 使用 fvcore 計算參數量
-    # param_table = parameter_count_table(model)
-    # print(param_table)
+    # 使用 fvcore 計算參數量
+    param_table = parameter_count_table(model)
+    print(param_table)
 main()

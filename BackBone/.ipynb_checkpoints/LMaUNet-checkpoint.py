@@ -1,4 +1,5 @@
-#2p,2w
+import sys
+sys.path.append('/root/notebooks/automl/CPMNet/networks')
 from re import S
 from xml.dom import xmlbuilder
 import numpy as np
@@ -26,7 +27,7 @@ from mamba_ssm import Mamba
 import copy
 import math
 import sys
-from .modules import SELayer, Identity, ConvBlock, act_layer, norm_layer3d
+from modules import SELayer, Identity, ConvBlock, act_layer, norm_layer3d
 from ptflops import get_model_complexity_info
 '''
 Computational complexity:       26.69 GMac
@@ -658,7 +659,7 @@ def main():
         conv_op=nn.Conv3d,
         kernel_sizes=[3, 3,3],
         strides=[2, 2,2],
-        n_conv_per_stage=[2, 2, 2], # Number of encoder blocks(Conv+PiM+PaM)
+        n_conv_per_stage=[4, 4, 4], # Number of encoder blocks(Conv+PiM+PaM)
         num_classes=1,
         n_conv_per_stage_decoder=[2],# conv after  transpose, not on skip connection
         conv_bias=True,
@@ -675,4 +676,17 @@ def main():
     print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
     print('{:<30}  {:<8}'.format('Number of parameters: ', params))
 
+    # fvcore 相關導入
+    # from fvcore.nn import FlopCountAnalysis, parameter_count_table
+    # input_tensor = torch.randn(1, 1, 96, 96, 96).to(device)
+
+    # # 使用 fvcore 計算 FLOPs
+    # flops = FlopCountAnalysis(model, input_tensor)
+    # flops_total = flops.total()  # 總 FLOPs
+    # print(f"Total FLOPs: {flops_total / 1e9:.2f} GFLOPs")  # 轉換為 GFLOPs
+    # print(flops.by_module())  # 按模塊顯示詳細 FLOPs
+
+    # # 使用 fvcore 計算參數量
+    # param_table = parameter_count_table(model)
+    # print(param_table)
 main()

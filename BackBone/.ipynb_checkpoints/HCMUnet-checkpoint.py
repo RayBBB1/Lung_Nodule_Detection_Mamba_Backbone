@@ -1296,20 +1296,19 @@ class DenseConvDown(nn.Module):
         else:
             x = self.conv_list[2](torch.cat([x1, x2], dim=1))
         return x
-
 class HCMA(nn.Module):
     def __init__(
         self,
         in_channels,
-        n_classes,
+        n_classes,  # 保留參數，但不會使用
         depth=4,
         conv=DenseConv,
-        channels=[2**i for i in range(5, 10)],
+        channels=[2**i for i in range(5, 10)],  # [32, 64, 128, 256, 512]
         encoder_num_conv=[1, 1, 1, 1],
-        decoder_num_conv=[1, 1, 1, 1],
+        decoder_num_conv=[1, 1],  # 調整為 2 層，對應 2 次上採樣
         encoder_expand_rate=[4] * 4,
-        decoder_expand_rate=[4] * 4,
-        strides=[(2, 2, 2), (2, 2, 2), (2, 2, 2), (1, 1, 1)],
+        decoder_expand_rate=[4] * 2,  # 調整為 2 層
+        strides=[(2, 2, 2), (2, 2, 2), (2, 2, 2), (2, 2, 2)],  # 確保 4 次下採樣
         dropout_rate_list=[0.025, 0.05, 0.1, 0.1],
         drop_path_rate_list=[0.025, 0.05, 0.1, 0.1],
         deep_supervision=False,
@@ -1325,17 +1324,17 @@ class HCMA(nn.Module):
         self.deep_supervision = deep_supervision
         self.predict_mode = predict_mode
         self.is_skip = is_skip
-        assert len(channels) == depth + 1, "len(encoder_channels) != depth + 1"
+        assert len(channels) == depth + 1, "len(channels) != depth + 1"
         assert len(strides) == depth, "len(strides) != depth"
 
-        self.encoders = nn.ModuleList()  # 
-        self.decoders = nn.ModuleList()  # 
-        self.skips = nn.ModuleList()  # 
+        self.encoders = nn.ModuleList()
+        self.decoders = nn.ModuleList()
+        self.skips = nn.ModuleList()
         self.encoders.append(DenseConv(in_channels, channels[0]))
-        patch_ini=[64,192,128]
+        patch_ini = [96, 96, 96]
         for i in range(self.depth):
             for j in range(3):
-                patch_ini[j] = int(patch_ini[j]/strides[i][0])
+                patch_ini[j] = int(patch_ini[j] / strides[i][0])
             self.encoders.append(
                 Down(
                     in_channels=channels[i],
@@ -1343,40 +1342,44 @@ class HCMA(nn.Module):
                     conv=conv,
                     num_conv=encoder_num_conv[i],
                     stride=strides[i],
-                    patch_size=patch_ini,
+                    patch_size=patch_ini,  # 注意這裡使用 patch_size，與原始程式碼一致
                     is_split=is_split,
                     expand_rate=encoder_expand_rate[i],
                     dropout_rate=dropout_rate_list[i],
                     drop_path_rate=drop_path_rate_list[i],
                     is_slice_attention=is_slice_attention
-                ),
+                )
             )
 
-        for i in range(self.depth):
+        # 解碼器只上採樣到 [24, 24, 24]，需要 2 次上採樣
+        for i in range(2):  # 從 [6, 6, 6] 到 [12, 12, 12] 到 [24, 24, 24]
+            # 更新 patch_ini 為當前層的尺寸
             patch_ini*=strides[self.depth - i - 1][0]
             for j in range(3):
                 patch_ini[j]*=strides[self.depth - i - 1][0]
+                
             self.decoders.append(
                 Up(
-                    low_channels=channels[self.depth - i],
-                    high_channels=channels[self.depth - i - 1],
-                    out_channels=channels[self.depth - i - 1],
-                    # conv=conv,
+                    low_channels=channels[self.depth - i],  # [512, 256]
+                    high_channels=channels[self.depth - i - 1],  # [256, 128]
+                    out_channels=channels[self.depth - i - 1],  # [256, 128]
                     patch_size=patch_ini,
                     is_split=is_split,
-                    num_conv=decoder_num_conv[self.depth - i - 1],
+                    num_conv=decoder_num_conv[i],
                     stride=strides[self.depth - i - 1],
                     fusion_mode="add",
-                    expand_rate=decoder_expand_rate[self.depth - i - 1],
+                    expand_rate=decoder_expand_rate[i],
                     dropout_rate=dropout_rate_list[self.depth - i - 1],
                     drop_path_rate=drop_path_rate_list[self.depth - i - 1],
                 )
             )
-        for i in range(self.depth):
+        
+        # 跳躍連接（只保留 2 個，因為解碼器只有 2 層）
+        for i in range(2):
             if self.is_skip:
                 self.skips.append(
                     TripleLine3DFusion(
-                        in_channels = channels[self.depth - i],
+                        in_channels=channels[self.depth - i],
                         kernel_size=7
                     )
                 )
@@ -1384,51 +1387,41 @@ class HCMA(nn.Module):
                 self.skips.append(
                     nn.Identity()
                 )
-        self.out = nn.ModuleList(
-            [Out(channels[depth - i - 1], n_classes) for i in range(depth)]
-        )
-        
+
+        # 移除 self.out，因為不需要 head
 
     def forward(self, x):
-        encoder_features = []  # 
-        decoder_features = []  # 
+        encoder_features = []
+        decoder_features = []
 
-        for i,encoder in enumerate(self.encoders):
-            if i==0:
-                x = encoder(x)
+        # 編碼器前向傳播
+        for i, encoder in enumerate(self.encoders):
+            if i == 0:
+                x = encoder(x)  # [B, 32, 96, 96, 96]
                 encoder_features.append([x])
             else:
-                x_down,x = encoder(x)
-                encoder_features.append([x_down,x])
+                x_down, x = encoder(x)  # [48, 48, 48], [24, 24, 24], [12, 12, 12], [6, 6, 6]
+                encoder_features.append([x_down, x])
+        for f in encoder_features:
+            print(f[0].shape)
+            
+        # 解碼器前向傳播（只到 [24, 24, 24]）
+        x_dec = encoder_features[self.depth][1]  # [B, 512, 6, 6, 6]
+        for i in range(len(self.decoders)):
+            x_down = encoder_features[self.depth - i - 1][0]
+            #print(x_down.shape)
+            x_dec = self.decoders[i](x_dec, self.skips[i](x_down))
+            decoder_features.append(x_dec)
 
-        for i in range(self.depth+1):
-            if i == 0:
-                x_down,x_dec =  encoder_features[self.depth-i][0],encoder_features[self.depth-i][1]
-                x_dec = self.skips[i](x_dec)
-                # print(x_dec.shape)
-            elif i == self.depth:
-                x_dec = self.decoders[i-1](x_dec, x_down)
-                decoder_features.append(x_dec)
-                # print(x_dec.shape)
-            else:
-                x_dec = self.decoders[i-1](x_dec, self.skips[i](x_down))
-                x_down = encoder_features[self.depth-i][0]
-                decoder_features.append(x_dec)
-                # print(x_dec.shape)
+        # 直接返回解碼器輸出，不使用 head
+        return decoder_features[-1]  # [B, 128, 24, 24, 24]
 
-        if self.deep_supervision:
-            return [m(mask) for m, mask in zip(self.out, decoder_features)][::-1]
-        elif self.predict_mode:
-            return self.out[-1](decoder_features[-1])
-        else:
-            return x_dec, self.out[-1](decoder_features[-1])
-
-
+# 測試程式碼
 if __name__ == "__main__":
-    model =HCMA(1, 2).to("cuda:0")
-    # inputs = torch.randn((2,1,128,128,128)).to("cuda:6")
-    # print(model(inputs).shape)
-    from ptflops import get_model_complexity_info
-    macs, params = get_model_complexity_info(model, (1,128, 128, 128), as_strings=True, print_per_layer_stat=True, verbose=True)
-    print(f'Computational complexity: {macs}')
-    print(f'Number of parameters: {params}')
+    import torch
+    from torch import nn
+    # 假設其他模組已定義，這裡僅測試 HCMA
+    model = HCMA(in_channels=1, n_classes=2).to("cuda:0")
+    inputs = torch.randn((2, 1, 96, 96, 96)).to("cuda:0")
+    output = model(inputs)
+    print(f"Output shape: {output.shape}")  # 應為 [2, 128, 24, 24, 24]
