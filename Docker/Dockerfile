@@ -12,11 +12,11 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 確保 Python 3.10 為預設版本 (如果有需要)
+# 確保 Python 3.10 為預設版本 
 RUN ln -sf /usr/bin/python3.10 /usr/bin/python && \
     ln -sf /usr/bin/pip3 /usr/bin/pip
 
-# 確認 Python 版本 (這一步現在不會出錯)
+# 確認 Python 版本 
 RUN python --version
 
 # 安裝 PyTorch (與 CUDA 11.8 相容的版本)
