@@ -1,0 +1,16 @@
+Prob threshold: 0.5083 eval.py:234
+benign                   : Recall=0.571, Precision=0.677, F1=0.619, TP=113, FP=54, FN=85
+probably_benign          : Recall=0.802, Precision=0.557, F1=0.658, TP=486, FP=386, FN=120
+probably_suspicious      : Recall=0.891, Precision=0.657, F1=0.756, TP=220, FP=115, FN=27
+suspicious               : Recall=0.807, Precision=0.605, F1=0.691, TP=130, FP=85, FN=31
+suspicious_combined      : Recall=0.858, Precision=0.636, F1=0.731, TP=350, FP=200, FN=58
+all                      : Recall=0.783, Precision=0.597, F1=0.678, TP=949, FP=640, FN=263
+Recall(series_based)     : 0.773 eval.py:286
+Prob threshold: 0.4 eval.py:234
+benign                   : Recall=0.788, Precision=0.281, F1=0.414, TP=156, FP=400, FN=42
+probably_benign          : Recall=0.903, Precision=0.325, F1=0.478, TP=547, FP=1136, FN=59
+probably_suspicious      : Recall=0.927, Precision=0.423, F1=0.581, TP=229, FP=312, FN=18
+suspicious               : Recall=0.851, Precision=0.407, F1=0.550, TP=137, FP=200, FN=24
+suspicious_combined      : Recall=0.897, Precision=0.417, F1=0.569, TP=366, FP=512, FN=42
+all                      : Recall=0.882, Precision=0.343, F1=0.494, TP=1069, FP=2048, FN=143
+Recall(series_based)     : 0.978 eval.py:286

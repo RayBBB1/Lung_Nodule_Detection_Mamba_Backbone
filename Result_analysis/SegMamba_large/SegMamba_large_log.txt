@@ -1,0 +1,8 @@
+Prob threshold: 0.511 eval.py:234
+benign                   : Recall=0.525, Precision=0.562, F1=0.543, TP=104, FP=81, FN=94
+probably_benign          : Recall=0.784, Precision=0.556, F1=0.650, TP=475, FP=380, FN=131
+probably_suspicious      : Recall=0.866, Precision=0.629, F1=0.729, TP=214, FP=126, FN=33
+suspicious               : Recall=0.745, Precision=0.667, F1=0.704, TP=120, FP=60, FN=41
+suspicious_combined      : Recall=0.819, Precision=0.642, F1=0.720, TP=334, FP=186, FN=74
+all                      : Recall=0.753, Precision=0.585, F1=0.659, TP=913, FP=647, FN=299
+Recall(series_based)     : 0.794 eval.py:286

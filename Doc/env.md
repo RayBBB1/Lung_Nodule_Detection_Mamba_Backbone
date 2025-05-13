@@ -171,17 +171,18 @@ Dockerfile 是一個文字檔案，其中包含了建立 Docker 鏡像的指令�
 
 1. 使用image建立Docker container
     ``` bash
-    docker run --gpus all -it --name pytorch-container pytorch-cuda:latest /bin/bash
+    docker run --gpus all --shm-size=16g -v C:\Users\nckubot65904\Desktop\Coding\Lung_Nodule_Detection_Mamba_Backbone\Docker\app:/app -it --name MambaLungDetect pytorch-cuda:latest bash
     ```
     <details>
     <summary>解釋</summary>
 
     `docker run`: 這是 Docker 的運行容器命令。
 
-    `--gpus all`: 這個選項用於啟用容器的 GPU 支援，讓容器可以使用主機上的所有 NVIDIA GPU。
+    `--gpus all`: 讓容器可以使用主機上的所有 NVIDIA GPU。
 
+    `--shm-size=8g`: 配置容器的shared memory 大小
+    `-v`: 將主機上的目錄掛載到容器內的指定路徑
     - `-it`: 這是兩個選項的組合：
-
         - `-i` 或 --interactive: 保持標準輸入 (STDIN) 開啟，即使沒有連接。 這允許你與容器互動。
 
         - `-t` 或 --tty: 分配一個偽終端 (pseudo-TTY)。 這讓你可以像在終端機中一樣與容器互動。
@@ -197,9 +198,9 @@ Dockerfile 是一個文字檔案，其中包含了建立 Docker 鏡像的指令�
 2. 若欲進入已存在的container
     * 列出 Container： `docker container ls -a` (假設你看到 pytorch-container 在列表中，狀態可能是 Exited)
 
-    * 啟動 Container： `docker start pytorch-container`
+    * 啟動 Container： `docker start "CONTAINER NAME" `
 
-    * 進入 Container： `docker exec -it pytorch-container /bin/bash`
+    * 進入 Container： `docker exec -it "CONTAINER NAME" /bin/bash`
 
 ## 步驟6. 複製程式碼到容器且執行程式
 

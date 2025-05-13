@@ -4,8 +4,13 @@ FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 WORKDIR /app
 
 # 更新套件並安裝 Python 3.10 及 pip
-RUN apt-get update && apt-get install -y python3.10 python3-pip && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+    python3.10 \
+    python3-pip \
+    python3-dev \
+    git \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # 確保 Python 3.10 為預設版本 (如果有需要)
 RUN ln -sf /usr/bin/python3.10 /usr/bin/python && \
